@@ -1,8 +1,11 @@
+# snipperai/ui/overlay.py
+
 import os
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QFrame, QHBoxLayout, QPushButton
 from PyQt6.QtCore import Qt, QRect, QPoint, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen
+
 
 class SnipperActionMenu(QFrame):
     """Floating action toolbar positioned inside the selection area."""
@@ -30,6 +33,16 @@ class SnipperActionMenu(QFrame):
                 background-color: #2563EB;
                 border-color: #3B82F6;
             }
+            QPushButton#agent_btn {
+                background-color: rgba(99, 102, 241, 0.25);
+                border: 1px solid rgba(129, 140, 248, 0.4);
+                color: #C7D2FE;
+            }
+            QPushButton#agent_btn:hover {
+                background-color: #4F46E5;
+                border-color: #6366F1;
+                color: #FFFFFF;
+            }
             QPushButton#close_btn {
                 background-color: rgba(239, 68, 68, 0.2);
                 color: #F87171;
@@ -47,6 +60,11 @@ class SnipperActionMenu(QFrame):
         layout.setSpacing(5)
 
         # Action Buttons
+        self.agent_btn = QPushButton("🤖 Explain")
+        self.agent_btn.setObjectName("agent_btn")
+        self.agent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.agent_btn)
+
         self.ocr_btn = QPushButton("🔍 OCR Scan")
         self.ocr_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.ocr_btn)
@@ -93,6 +111,7 @@ class SnipperOverlay(QWidget):
         self.action_menu.hide()
         
         # Connect button signals
+        self.action_menu.agent_btn.clicked.connect(lambda: self._trigger_action("EXPLAIN"))
         self.action_menu.ocr_btn.clicked.connect(lambda: self._trigger_action("OCR"))
         self.action_menu.copy_btn.clicked.connect(lambda: self._trigger_action("COPY_IMAGE"))
         self.action_menu.close_btn.clicked.connect(lambda: self._trigger_action("CLOSE"))

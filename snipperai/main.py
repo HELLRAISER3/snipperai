@@ -1,13 +1,17 @@
+# main.py
+
 import sys
 from PyQt6.QtWidgets import QApplication
 
-from snipperai.components.actions import OCRAction, CopyAction, CloseAction
+from snipperai.components.actions import OCRAction, CopyAction, CloseAction, AgentAction
 from snipperai.ui.overlay import SnipperOverlay
 from snipperai.ui.ocr_result_window import TextResultWindow
+
 
 class SnipperApp:
     def __init__(self):
         self.ocr_action = OCRAction()
+        self.agent_action = AgentAction()
         self.result_window = None
 
     def start_snip(self):
@@ -16,12 +20,23 @@ class SnipperApp:
         self.overlay.show()
 
     def dispatch_action(self, action_type: str, image_path: str):
-        if action_type == "OCR":
+        if action_type == "EXPLAIN":
+            # Call the agent action and display results
+            ai_explanation = self.agent_action.execute(image_path)
+            
+            self.result_window = TextResultWindow(ai_explanation)
+            self.result_window.setWindowTitle("SnipperAI - AI Explanation")
+            self.result_window.show()
+            self.result_window.raise_()
+            self.result_window.activateWindow()
+
+        elif action_type == "OCR":
             extracted_text = self.ocr_action.execute(image_path)
             if not extracted_text or not extracted_text.strip():
                 extracted_text = "[No text detected in selected area]"
 
             self.result_window = TextResultWindow(extracted_text)
+            self.result_window.setWindowTitle("SnipperAI - OCR Scan Result")
             self.result_window.show()
             self.result_window.raise_()
             self.result_window.activateWindow()
@@ -33,6 +48,7 @@ class SnipperApp:
         elif action_type == "CLOSE":
             CloseAction.execute()
             print("Snipping cancelled.")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
