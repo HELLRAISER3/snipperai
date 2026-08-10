@@ -57,38 +57,49 @@ class AgentChatWindow(QWidget):
         self.resize(600, 700)
         self.setStyleSheet("""
             QWidget {
-                background-color: #0F172A;
-                color: #F8FAFC;
+                background-color: #F3F4F6;
+                color: #111827;
                 font-family: 'Segoe UI', sans-serif;
             }
             QTextEdit {
-                background-color: #1E293B;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 10px;
+                background-color: #FFFFFF;
+                color: #111827;
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 14px;
                 font-size: 14px;
+            }
+            QTextEdit:focus {
+                border: 1px solid #93C5FD;
             }
             QLineEdit {
-                background-color: #1E293B;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 10px;
+                background-color: #FFFFFF;
+                color: #111827;
+                border: 1px solid #E5E7EB;
+                border-radius: 12px;
+                padding: 12px;
                 font-size: 14px;
+                min-height: 38px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #93C5FD;
             }
             QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 10px 20px;
-                font-weight: bold;
+                background-color: #FFFFFF;
+                color: #111827;
+                border: 1px solid #E5E7EB;
+                border-radius: 12px;
+                padding: 10px 16px;
+                font-weight: 700;
             }
             QPushButton:hover {
-                background-color: #3B82F6;
+                background-color: #EFF6FF;
+                border-color: #BFDBFE;
             }
             QPushButton:disabled {
-                background-color: #475569;
-                color: #94A3B8;
+                background-color: #F8FAFC;
+                color: #9CA3AF;
+                border-color: #E5E7EB;
             }
         """)
 
@@ -100,7 +111,6 @@ class AgentChatWindow(QWidget):
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
 
-        # Header: Image Preview
         header_layout = QHBoxLayout()
         self.image_label = QLabel()
         self.image_label.setFixedSize(120, 80)
@@ -129,12 +139,10 @@ class AgentChatWindow(QWidget):
         header_layout.addStretch()
         layout.addLayout(header_layout)
 
-        # Chat Display
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
         layout.addWidget(self.chat_display)
 
-        # Input Area
         input_layout = QHBoxLayout()
         self.input_field = QLineEdit()
         self.input_field.setPlaceholderText("Ask a follow-up question...")
@@ -156,27 +164,57 @@ class AgentChatWindow(QWidget):
             .replace('"', "&quot;")
         )
 
+    def _latex_to_unicode(self, text: str) -> str:
+        """Converts common LaTeX math syntax into clean Unicode text for native rendering."""
+        def clean_match(m):
+            tex = m.group(1) or m.group(2) or ""
+            if not tex:
+                return ""
+            
+            s = tex.strip()
+            s = s.replace(r"\infty", "∞")
+            s = s.replace(r"\sum", "∑")
+            s = s.replace(r"\int", "∫")
+            s = s.replace(r"\sin", "sin")
+            s = s.replace(r"\cos", "cos")
+            s = s.replace(r"\ln", "ln")
+            s = s.replace(r"\in", "∈")
+            s = s.replace(r"\times", "×")
+            s = s.replace(r"\leq", "≤")
+            s = s.replace(r"\geq", "≥")
+            s = s.replace(r"\neq", "≠")
+            
+            s = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1)/(\2)", s)
+            
+            s = s.replace("\\", "")
+            return f"<code>{s}</code>"
+
+        text = re.sub(r"\\\[(.*?)\\\]|\$\$(.*?)\$\$", clean_match, text, flags=re.DOTALL)
+        text = re.sub(r"\\\((.*?)\\\)|\$([^\$]+)\$", clean_match, text, flags=re.DOTALL)
+
+        return text
+
     def _simple_markdown_to_html(self, text: str) -> str:
-        escaped = self._escape_html(text)
+        code_blocks = []
+        def stash_block(m):
+            code_blocks.append(f"<pre><code>{self._escape_html(m.group(1))}</code></pre>")
+            return f"___CODEBLOCK_{len(code_blocks)-1}___"
+        
+        text = re.sub(r"```(?:[^\n]*\n)?(.*?)```", stash_block, text, flags=re.S)
 
-        escaped = re.sub(
-            r"```(?:[^\n]*\n)?(.*?)```",
-            r"<pre><code>\1</code></pre>",
-            escaped,
-            flags=re.S,
-        )
-        escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
-        escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
-        escaped = re.sub(r"__(.+?)__", r"<strong>\1</strong>", escaped)
-        escaped = re.sub(r"\*(.+?)\*", r"<em>\1</em>", escaped)
-        escaped = re.sub(r"_(.+?)_", r"<em>\1</em>", escaped)
-        escaped = re.sub(
-            r"\[([^\]]+)\]\(([^)]+)\)",
-            r"<a href=\"\2\">\1</a>",
-            escaped,
-        )
+        inline_codes = []
+        def stash_inline(m):
+            inline_codes.append(f"<code>{self._escape_html(m.group(1))}</code>")
+            return f"___INLINECODE_{len(inline_codes)-1}___"
 
-        lines = escaped.splitlines()
+        text = re.sub(r"`([^`]+)`", stash_inline, text)
+
+        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+        text = re.sub(r"__(.+?)__", r"<strong>\1</strong>", text)
+        text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
+        text = re.sub(r"_(.+?)_", r"<em>\1</em>", text)
+
+        lines = text.splitlines()
         html_lines = []
         in_list = False
 
@@ -186,15 +224,14 @@ class AgentChatWindow(QWidget):
                 if in_list:
                     html_lines.append("</ul>")
                     in_list = False
-                html_lines.append("")
                 continue
 
             list_match = re.match(r"^[-*+]\s+(.*)$", stripped)
             if list_match:
                 if not in_list:
-                    html_lines.append("<ul>")
+                    html_lines.append('<ul style="margin-top:2px; margin-bottom:4px; padding-left:20px;">')
                     in_list = True
-                html_lines.append(f"<li>{list_match.group(1)}</li>")
+                html_lines.append(f'<li style="margin-bottom:2px;">{list_match.group(1)}</li>')
                 continue
 
             if in_list:
@@ -205,44 +242,58 @@ class AgentChatWindow(QWidget):
             if heading_match:
                 level = len(heading_match.group(1))
                 html_lines.append(
-                    f"<h{level}>{heading_match.group(2)}</h{level}>"
+                    f'<h{level} style="margin-top:6px; margin-bottom:2px; padding:0; line-height:1.2;">{heading_match.group(2)}</h{level}>'
                 )
                 continue
 
-            html_lines.append(stripped.replace("\n", "<br>"))
+            html_lines.append(f'<p style="margin-top:2px; margin-bottom:4px; line-height:1.35;">{stripped}</p>')
 
         if in_list:
             html_lines.append("</ul>")
 
-        return "<br>".join(html_lines)
+        result = "".join(html_lines)
+
+        for i, code in enumerate(inline_codes):
+            result = result.replace(f"___INLINECODE_{i}___", code)
+        for i, code in enumerate(code_blocks):
+            result = result.replace(f"___CODEBLOCK_{i}___", code)
+
+        return result
 
     def _render_markdown(self, text: str) -> str:
+        text = self._latex_to_unicode(text)
         try:
             markdown = importlib.import_module("markdown")
-
-            return markdown.markdown(
+            html = markdown.markdown(
                 text,
-                extensions=["fenced_code", "codehilite", "nl2br"],
+                extensions=["fenced_code", "codehilite"],
             )
+            html = re.sub(r"<h([1-6])>", r'<h\1 style="margin-top:6px; margin-bottom:2px; padding:0; line-height:1.2;">', html)
+            html = re.sub(r"<p>", r'<p style="margin-top:2px; margin-bottom:4px; line-height:1.35;">', html)
+            html = re.sub(r"<ul>", r'<ul style="margin-top:2px; margin-bottom:4px; padding-left:20px;">', html)
+            html = re.sub(r"<li>", r'<li style="margin-bottom:2px;">', html)
+            return html
         except (ImportError, ModuleNotFoundError):
             return self._simple_markdown_to_html(text)
 
     def append_message(self, role: str, text: str):
         """Formats and appends a message to the chat display."""
-        color = "#60A5FA" if role == "User" else "#34D399"
+        color = "#2563EB" if role == "User" else "#059669"
         if role == "Error":
-            color = "#F87171"
+            color = "#DC2626"
 
         body = (
             self._render_markdown(text)
             if role == "SnipperAI"
-            else self._escape_html(text).replace("\n", "<br>")
+            else f'<p style="margin-top:2px; margin-bottom:4px; line-height:1.35;">{self._escape_html(text)}</p>'
         )
 
-        html = (
-            f'<div style="margin-bottom:12px;">'
-            f'<b style="color:{color};">{role}:</b><br>{body}</div>'
-        )
+        html = f"""
+        <div style="margin-bottom:8px;">
+            <b style="color:{color}; font-size:14px;">{role}:</b>
+            <div style="margin-top:2px;">{body}</div>
+        </div>
+        """
         self.chat_display.append(html)
 
     def _start_initial_analysis(self):

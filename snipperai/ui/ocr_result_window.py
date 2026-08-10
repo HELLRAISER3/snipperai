@@ -15,58 +15,57 @@ class TextResultWindow(QWidget):
         # Base Dark Theme & Glassmorphism Styling
         self.setStyleSheet("""
             QWidget {
-                background-color: #0F172A; /* Slate 900 */
-                color: #F8FAFC;
+                background-color: #F3F4F6;
+                color: #111827;
                 font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             }
             QLabel#header_label {
                 font-size: 14px;
-                font-weight: 600;
-                color: #94A3B8;
+                font-weight: 700;
+                color: #111827;
             }
             QTextEdit {
-                background-color: #1E293B; /* Slate 800 */
-                color: #E2E8F0;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 12px;
+                background-color: #FFFFFF;
+                color: #111827;
+                border: 1px solid #E5E7EB;
+                border-radius: 12px;
+                padding: 14px;
                 font-size: 13px;
-                font-family: 'Consolas', 'Cascadia Code', monospace;
-                selection-background-color: #2563EB;
+                font-family: 'Segoe UI', sans-serif;
+                selection-background-color: #BFDBFE;
             }
             QTextEdit:focus {
-                border: 1px solid #3B82F6;
+                border: 1px solid #93C5FD;
             }
-            /* Custom Scrollbar */
             QScrollBar:vertical {
-                background: #1E293B;
+                background: #F3F4F6;
                 width: 8px;
                 border-radius: 4px;
             }
             QScrollBar::handle:vertical {
-                background: #475569;
+                background: #CBD5E1;
                 border-radius: 4px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #64748B;
+                background: #94A3B8;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
             QPushButton#copy_btn {
-                background-color: #2563EB; /* Accent Blue */
-                color: #FFFFFF;
-                border: none;
-                border-radius: 6px;
+                background-color: #E0E7FF;
+                color: #1D4ED8;
+                border: 1px solid #BFDBFE;
+                border-radius: 10px;
                 padding: 10px 16px;
                 font-size: 13px;
-                font-weight: 600;
+                font-weight: 700;
             }
             QPushButton#copy_btn:hover {
-                background-color: #3B82F6;
+                background-color: #DBEAFE;
             }
             QPushButton#copy_btn:pressed {
-                background-color: #1D4ED8;
+                background-color: #BFDBFE;
             }
         """)
 

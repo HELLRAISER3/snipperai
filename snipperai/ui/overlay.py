@@ -15,43 +15,41 @@ class SnipperActionMenu(QFrame):
         
         self.setStyleSheet("""
             QFrame {
-                background-color: rgba(15, 23, 42, 0.92);
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 10px;
+                border: 1px solid rgba(0, 0, 0, 0.08);
             }
             QPushButton {
-                background-color: rgba(255, 255, 255, 0.08);
-                color: #FFFFFF;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 6px;
-                padding: 5px 10px;
+                background-color: #FFFFFF;
+                color: #111827;
+                border: 1px solid #D1D5DB;
+                border-radius: 10px;
+                padding: 8px 12px;
                 font-size: 13px;
                 font-weight: 600;
                 font-family: 'Segoe UI', sans-serif;
             }
             QPushButton:hover {
-                background-color: #2563EB;
-                border-color: #3B82F6;
+                background-color: #EFF6FF;
+                border-color: #BFDBFE;
             }
             QPushButton#agent_btn {
-                background-color: rgba(99, 102, 241, 0.25);
-                border: 1px solid rgba(129, 140, 248, 0.4);
-                color: #C7D2FE;
+                background-color: #EFF6FF;
+                border: 1px solid #BFDBFE;
+                color: #1D4ED8;
             }
             QPushButton#agent_btn:hover {
-                background-color: #4F46E5;
-                border-color: #6366F1;
-                color: #FFFFFF;
+                background-color: #DBEAFE;
             }
             QPushButton#close_btn {
-                background-color: rgba(239, 68, 68, 0.2);
-                color: #F87171;
-                border: 1px solid rgba(239, 68, 68, 0.4);
-                padding: 5px 9px;
+                background-color: #FEE2E2;
+                color: #B91C1C;
+                border: 1px solid #FECACA;
+                padding: 8px 10px;
             }
             QPushButton#close_btn:hover {
-                background-color: #DC2626;
-                color: #FFFFFF;
+                background-color: #FECACA;
+                color: #7F1D1D;
             }
         """)
 
