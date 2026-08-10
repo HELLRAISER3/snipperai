@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QApplication
 from snipperai.components.actions import OCRAction, CopyAction, CloseAction, AgentAction
 from snipperai.ui.overlay import SnipperOverlay
 from snipperai.ui.ocr_result_window import TextResultWindow
+from snipperai.ui.agent_window import AgentChatWindow  # Imported new agent chat UI
 
 
 class SnipperApp:
@@ -21,11 +22,11 @@ class SnipperApp:
 
     def dispatch_action(self, action_type: str, image_path: str):
         if action_type == "EXPLAIN":
-            # Call the agent action and display results
-            ai_explanation = self.agent_action.execute(image_path)
-            
-            self.result_window = TextResultWindow(ai_explanation)
-            self.result_window.setWindowTitle("SnipperAI - AI Explanation")
+            # Instantiate and display the interactive Agent Chat Window
+            self.result_window = AgentChatWindow(
+                image_path=image_path, 
+                agent_action=self.agent_action
+            )
             self.result_window.show()
             self.result_window.raise_()
             self.result_window.activateWindow()
