@@ -1,11 +1,68 @@
 import os
 import sys
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication, QWidget, QFrame, QHBoxLayout, QPushButton
 from PyQt6.QtCore import Qt, QRect, QPoint, pyqtSignal
-from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap
+from PyQt6.QtGui import QPainter, QColor, QPen
+
+class SnipperActionMenu(QFrame):
+    """Floating action toolbar positioned inside the selection area."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
+        
+        self.setStyleSheet("""
+            QFrame {
+                background-color: rgba(15, 23, 42, 0.92);
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+            }
+            QPushButton {
+                background-color: rgba(255, 255, 255, 0.08);
+                color: #FFFFFF;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 13px;
+                font-weight: 600;
+                font-family: 'Segoe UI', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #2563EB;
+                border-color: #3B82F6;
+            }
+            QPushButton#close_btn {
+                background-color: rgba(239, 68, 68, 0.2);
+                color: #F87171;
+                border: 1px solid rgba(239, 68, 68, 0.4);
+                padding: 5px 9px;
+            }
+            QPushButton#close_btn:hover {
+                background-color: #DC2626;
+                color: #FFFFFF;
+            }
+        """)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(5)
+
+        # Action Buttons
+        self.ocr_btn = QPushButton("🔍 OCR Scan")
+        self.ocr_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.ocr_btn)
+
+        self.copy_btn = QPushButton("📋 Copy Image")
+        self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.copy_btn)
+
+        self.close_btn = QPushButton("❌")
+        self.close_btn.setObjectName("close_btn")
+        self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.close_btn)
+
 
 class SnipperOverlay(QWidget):
-    snippet_captured = pyqtSignal(str)
+    action_requested = pyqtSignal(str, str)  # Emits (action_type, image_path)
 
     def __init__(self, save_path: str = "buffer/snip_buffer.png"):
         super().__init__()
@@ -14,9 +71,8 @@ class SnipperOverlay(QWidget):
         screen = QApplication.primaryScreen()
         if not screen:
             raise RuntimeError("Could not detect primary screen.")
-            
         self.full_screenshot = screen.grabWindow(0)
-        self.dpr = screen.devicePixelRatio()  
+        self.dpr = screen.devicePixelRatio()
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | 
@@ -29,11 +85,37 @@ class SnipperOverlay(QWidget):
         self.begin = QPoint()
         self.end = QPoint()
         self.is_selecting = False
+        self.current_selection_rect = None
+        self.finalized_cropped_image = None
+
+        # Floating Action Menu
+        self.action_menu = SnipperActionMenu(self)
+        self.action_menu.hide()
+        
+        # Connect button signals
+        self.action_menu.ocr_btn.clicked.connect(lambda: self._trigger_action("OCR"))
+        self.action_menu.copy_btn.clicked.connect(lambda: self._trigger_action("COPY_IMAGE"))
+        self.action_menu.close_btn.clicked.connect(lambda: self._trigger_action("CLOSE"))
+
+    def _trigger_action(self, action_type: str):
+        self.hide()
+        QApplication.processEvents()
+
+        if action_type != "CLOSE" and self.finalized_cropped_image:
+            output_dir = os.path.dirname(self.save_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+            self.finalized_cropped_image.save(self.save_path)
+
+        self.action_requested.emit(action_type, self.save_path)
+        self.deleteLater()
 
     def mousePressEvent(self, event):
+        self.action_menu.hide()
         self.begin = event.pos()
         self.end = event.pos()
         self.is_selecting = True
+        self.current_selection_rect = None
         self.update()
 
     def mouseMoveEvent(self, event):
@@ -47,53 +129,45 @@ class SnipperOverlay(QWidget):
         x2, y2 = max(self.begin.x(), self.end.x()), max(self.begin.y(), self.end.y())
         width, height = x2 - x1, y2 - y1
 
-        if width > 5 and height > 5:
-            crop_rect = QRect(
-                int(x1 * self.dpr), 
-                int(y1 * self.dpr), 
-                int(width * self.dpr), 
-                int(height * self.dpr)
+        if width > 15 and height > 15:
+            self.current_selection_rect = QRect(x1, y1, width, height)
+            
+            high_res_rect = QRect(
+                int(x1 * self.dpr), int(y1 * self.dpr), 
+                int(width * self.dpr), int(height * self.dpr)
             )
-            cropped_image = self.full_screenshot.copy(crop_rect)
+            self.finalized_cropped_image = self.full_screenshot.copy(high_res_rect)
             
-            output_dir = os.path.dirname(self.save_path)
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                
-            cropped_image.save(self.save_path)
-            print(f"Captured clean area: {width}x{height} saved to {self.save_path}")
-            
-            self.snippet_captured.emit(self.save_path)
+            # Position action menu inside bottom-right corner
+            menu_size = self.action_menu.sizeHint()
+            padding = 8
 
-        self.close()
+            menu_x = x2 - menu_size.width() - padding
+            menu_y = y2 - menu_size.height() - padding
+
+            if menu_x < x1 + padding:
+                menu_x = x1 + padding
+            if menu_y < y1 + padding:
+                menu_y = y1 - menu_size.height() - padding
+
+            screen_rect = self.rect()
+            menu_x = max(padding, min(menu_x, screen_rect.width() - menu_size.width() - padding))
+            menu_y = max(padding, min(menu_y, screen_rect.height() - menu_size.height() - padding))
+
+            self.action_menu.move(QPoint(int(menu_x), int(menu_y)))
+            self.action_menu.show()
+            self.update()
+        else:
+            self.action_menu.hide()
+            self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        
-        # Draw base frozen desktop
         painter.drawPixmap(0, 0, self.full_screenshot)
+        painter.fillRect(self.rect(), QColor(10, 14, 23, 140))
         
-        # Apply dark mask layer over everything
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 110))
-        
-        if self.is_selecting:
-            rect = QRect(self.begin, self.end).normalized()
-            
-            # Un-tint selected rectangular region
+        if self.is_selecting or self.current_selection_rect:
+            rect = QRect(self.begin, self.end).normalized() if self.is_selecting else self.current_selection_rect
             painter.drawPixmap(rect, self.full_screenshot, rect)
-            
-            # Selection border
-            painter.setPen(QPen(QColor(120, 120, 120), 2))
+            painter.setPen(QPen(QColor(59, 130, 246), 2))
             painter.drawRect(rect)
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    
-    # Quick standalone test execution
-    def on_captured(path):
-        print(f"Signal received! File ready at: {path}")
-
-    snipper = SnipperOverlay()
-    snipper.snippet_captured.connect(on_captured)
-    snipper.show()
-    sys.exit(app.exec())

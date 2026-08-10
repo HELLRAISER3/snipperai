@@ -5,11 +5,11 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-class OCR():
+class OCRAction():
     def __init__(self):
         self.engine = RapidOCR()
 
-    def extract_text(self, image_path: str) -> str:
+    def execute(self, image_path: str) -> str:
         """Extract text from an image."""
         text_results, _ = self.engine(image_path)
         
@@ -23,7 +23,7 @@ class OCR():
 
 
 if __name__ == "__main__":
-    ocr = OCR()
+    ocr = OCRAction()
 
-    text = ocr.extract_text("././buffer/snip_buffer.png")
+    text = ocr.execute("././buffer/snip_buffer.png")
     logging.log(logging.INFO, "Your extracted text is:\n%s", text)
