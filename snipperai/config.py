@@ -5,38 +5,53 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 APP_NAME = "SnipperAI"
-
-# On Windows: C:\Users\<Username>\AppData\Roaming\SnipperAI
 CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / ".config") / APP_NAME
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
 class Settings(BaseSettings):
     openrouter_api_key: str | None = Field(default=None, alias="OPENROUTER_API_KEY")
+    hotkey: str = Field(default="ctrl+shift+s", alias="HOTKEY")
+    autostart: bool = Field(default=False, alias="AUTOSTART")
+    first_launch: bool = Field(default=True, alias="FIRST_LAUNCH")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    def save_api_key(self, key: str):
-        """Saves a user's API key to local OS storage."""
-        self.openrouter_api_key = key
+    def save_settings(
+        self,
+        api_key: str | None,
+        hotkey: str = "ctrl+shift+s",
+        autostart: bool = False,
+        first_launch: bool = False,
+    ):
+        self.openrouter_api_key = api_key
+        self.hotkey = hotkey.lower()
+        self.autostart = autostart
+        self.first_launch = first_launch
+
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        
+        payload = {
+            "OPENROUTER_API_KEY": self.openrouter_api_key,
+            "HOTKEY": self.hotkey,
+            "AUTOSTART": self.autostart,
+            "FIRST_LAUNCH": self.first_launch,
+        }
+
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({"OPENROUTER_API_KEY": key}, f, indent=2)
+            json.dump(payload, f, indent=2)
 
     @classmethod
     def load(cls) -> "Settings":
-        """
-        Loads key in order:
-        1. Local user config (%APPDATA%/SnipperAI/config.json)
-        2. Developer .env file
-        """
         if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if data.get("OPENROUTER_API_KEY"):
-                        return cls(openrouter_api_key=data["OPENROUTER_API_KEY"])
+                    return cls(
+                        openrouter_api_key=data.get("OPENROUTER_API_KEY"),
+                        hotkey=data.get("HOTKEY", "ctrl+shift+s"),
+                        autostart=data.get("AUTOSTART", False),
+                        first_launch=data.get("FIRST_LAUNCH", False),  
+                    )
             except Exception:
                 pass
 

@@ -1,5 +1,3 @@
-# snipperai/ui/overlay.py
-
 import os
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QFrame, QHBoxLayout, QPushButton
@@ -8,7 +6,6 @@ from PyQt6.QtGui import QPainter, QColor, QPen
 
 
 class SnipperActionMenu(QFrame):
-    """Floating action toolbar positioned inside the selection area."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
@@ -51,6 +48,9 @@ class SnipperActionMenu(QFrame):
                 background-color: #FECACA;
                 color: #7F1D1D;
             }
+            QPushButton#settings_btn {
+                padding: 8px 10px;
+            }
         """)
 
         layout = QHBoxLayout(self)
@@ -58,18 +58,24 @@ class SnipperActionMenu(QFrame):
         layout.setSpacing(5)
 
         # Action Buttons
-        self.agent_btn = QPushButton("🤖 Explain")
+        self.agent_btn = QPushButton("🤖")
         self.agent_btn.setObjectName("agent_btn")
         self.agent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.agent_btn)
 
-        self.ocr_btn = QPushButton("🔍 OCR Scan")
+        self.ocr_btn = QPushButton("🔍")
         self.ocr_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.ocr_btn)
 
-        self.copy_btn = QPushButton("📋 Copy Image")
+        self.copy_btn = QPushButton("📋")
         self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         layout.addWidget(self.copy_btn)
+
+        self.settings_btn = QPushButton("⚙️")
+        self.settings_btn.setObjectName("settings_btn")
+        self.settings_btn.setToolTip("Settings")
+        self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout.addWidget(self.settings_btn)
 
         self.close_btn = QPushButton("❌")
         self.close_btn.setObjectName("close_btn")
@@ -104,21 +110,20 @@ class SnipperOverlay(QWidget):
         self.current_selection_rect = None
         self.finalized_cropped_image = None
 
-        # Floating Action Menu
         self.action_menu = SnipperActionMenu(self)
         self.action_menu.hide()
         
-        # Connect button signals
         self.action_menu.agent_btn.clicked.connect(lambda: self._trigger_action("EXPLAIN"))
         self.action_menu.ocr_btn.clicked.connect(lambda: self._trigger_action("OCR"))
         self.action_menu.copy_btn.clicked.connect(lambda: self._trigger_action("COPY_IMAGE"))
+        self.action_menu.settings_btn.clicked.connect(lambda: self._trigger_action("SETTINGS"))
         self.action_menu.close_btn.clicked.connect(lambda: self._trigger_action("CLOSE"))
 
     def _trigger_action(self, action_type: str):
         self.hide()
         QApplication.processEvents()
 
-        if action_type != "CLOSE" and self.finalized_cropped_image:
+        if action_type not in ("CLOSE", "SETTINGS") and self.finalized_cropped_image:
             output_dir = os.path.dirname(self.save_path)
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
@@ -155,7 +160,6 @@ class SnipperOverlay(QWidget):
             )
             self.finalized_cropped_image = self.full_screenshot.copy(high_res_rect)
             
-            # Position action menu inside bottom-right corner
             menu_size = self.action_menu.sizeHint()
             padding = 8
 

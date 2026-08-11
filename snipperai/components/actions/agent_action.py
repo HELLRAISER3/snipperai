@@ -4,8 +4,6 @@ from snipperai.cloud.agent import SnipperAgent
 
 
 class AgentAction:
-    """Action component for running AI multimodal analysis on a captured snippet."""
-
     def __init__(self, agent: Optional[SnipperAgent] = None):
         self._agent = agent
 
