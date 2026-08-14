@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 from langchain_core.messages import HumanMessage, AIMessage
 
+from snipperai.cloud.agent import AgentError, InvalidApiKeyError, MissingApiKeyError
 from snipperai.components.actions import AgentAction
 from snipperai.ui.controls import HoverButton, HoverFrame, TitleBar
 from snipperai.ui.theme import TEXT_PRIMARY, TEXT_TERTIARY, get_theme_qss
@@ -25,7 +26,7 @@ class InferenceWorker(QThread):
     """Runs the AI inference in a background thread to prevent UI freezing."""
 
     finished = pyqtSignal(str)
-    error = pyqtSignal(str)
+    error = pyqtSignal(object)  # emits an AgentError, not a string
 
     def __init__(
         self,
@@ -42,18 +43,34 @@ class InferenceWorker(QThread):
 
     def run(self):
         try:
-            response = self.action.execute(
+            result = self.action.execute(
                 image_path=self.image_path,
                 prompt=self.prompt,
                 chat_history=self.chat_history,
             )
-            self.finished.emit(response)
-        except Exception as exc:
-            self.error.emit(f"AI Inference Error: {exc}")
+        except Exception:
+            # Safety net: AgentAction.execute() shouldn't raise (it returns
+            # a result object either way), but if it somehow does, still
+            # never leak the raw exception into the chat window.
+            self.error.emit(
+                AgentError("Something unexpected happened. Please try again.", retryable=True)
+            )
+            return
+
+        if result.ok:
+            self.finished.emit(result.text)
+        else:
+            self.error.emit(result.error)
 
 
 class AgentChatWindow(QWidget):
     """Frameless, glass-panel chat interface for talking to SnipperAI."""
+
+    # Emitted when the user hits an API-key-related error and should be
+    # sent to Settings to fix it. Connect this to your Settings dialog's
+    # open logic from wherever AgentChatWindow is constructed, e.g.:
+    #   window.open_settings_requested.connect(lambda: SettingsDialog(window).exec())
+    open_settings_requested = pyqtSignal()
 
     def __init__(self, image_path: str, agent_action: AgentAction):
         super().__init__()
@@ -288,6 +305,13 @@ class AgentChatWindow(QWidget):
     # Chat rendering - monochrome, hierarchy via alignment/weight not color
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    def _truncate(text: str, limit: int = 400) -> str:
+        text = text.strip()
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "\u2026"
+
     def append_message(self, role: str, text: str) -> None:
         """Formats and appends a message to the chat display.
 
@@ -295,12 +319,18 @@ class AgentChatWindow(QWidget):
         are right-aligned, SnipperAI's are left-aligned, and System/Error
         notices render as small centered italic captions - the same trick
         chat UIs use color for, done here with layout and weight instead.
+
+        System/Error text is truncated defensively: those messages should
+        always be short, curated strings from AgentError.user_message, but
+        capping length here means a future bug upstream can't dump a huge
+        blob (raw exception text, a stray traceback, etc.) into the chat
+        again the way the old `f"AI Inference Error: {exc}"` path did.
         """
         if role in ("System", "Error"):
             html = (
                 f'<p style="text-align:center; color:{TEXT_TERTIARY}; '
                 f'font-size:11px; font-style:italic; margin:10px 0;">'
-                f"{self._escape_html(text)}</p>"
+                f"{self._escape_html(self._truncate(text))}</p>"
             )
             self.chat_display.append(html)
             return
@@ -366,8 +396,23 @@ class AgentChatWindow(QWidget):
         self.append_message("SnipperAI", response_text)
         self._cleanup_worker()
 
-    def _on_inference_error(self, error_msg: str):
-        self.append_message("Error", error_msg)
+    def _on_inference_error(self, error: AgentError) -> None:
+        """Renders a classified, user-safe error - never raw exception
+        text, and never through the markdown/code-block rendering path
+        (that combination is what produced the "ghost code" artifact:
+        an unbounded raw exception string landing in a `<pre><code>`
+        block with no explicit color, inheriting a near-invisible
+        default). Errors always go through the Error role instead.
+        """
+        self.append_message("Error", error.user_message)
+
+        if isinstance(error, (MissingApiKeyError, InvalidApiKeyError)):
+            self.append_message(
+                "System",
+                "Open Settings to add or update your OpenRouter API key, then try again.",
+            )
+            self.open_settings_requested.emit()
+
         self._cleanup_worker()
 
     def _cleanup_worker(self):
