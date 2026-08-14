@@ -11,14 +11,12 @@ class SnipperActionMenu(QFrame):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
         
-        # Use shared theme for menu controls (greyscale frosted look)
         self.setStyleSheet(get_theme_qss("menu"))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
 
-        # Action Buttons
         self.agent_btn = QPushButton("🤖")
         self.agent_btn.setObjectName("agent_btn")
         self.agent_btn.setCursor(Qt.CursorShape.PointingHandCursor)

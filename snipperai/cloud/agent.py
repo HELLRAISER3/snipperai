@@ -1,4 +1,3 @@
-# snipperai/cloud/agent.py
 import base64
 import logging
 from typing import List, Optional, Union
@@ -11,19 +10,7 @@ from snipperai.config import settings
 logger = logging.getLogger(__name__)
 
 
-# --------------------------------------------------------------------------- #
 # Typed, user-safe errors
-#
-# Every one of these carries a short `user_message` that's already safe and
-# useful to show directly in the UI - no exception internals, no tracebacks,
-# no request/response dumps. The raw underlying exception is still logged
-# (via `logger.exception`) so it's recoverable for debugging, it just never
-# reaches the chat window.
-#
-# `MissingApiKeyError` also inherits from ValueError so any existing code
-# that catches ValueError for "no key configured" keeps working unchanged.
-# --------------------------------------------------------------------------- #
-
 
 class AgentError(Exception):
     """Base class for agent failures with a message that's safe to show
@@ -51,6 +38,22 @@ class ConnectionFailedError(AgentError):
     """Couldn't reach OpenRouter at all (network/DNS/timeout)."""
 
 
+_API_KEY_MIN_LENGTH = 20
+
+
+def is_valid_api_key(key: str) -> bool:
+    """Basic sanity check for an OpenRouter API key.
+    """
+    key = key.strip()
+    if len(key) < _API_KEY_MIN_LENGTH:
+        return False
+    if any(ch.isspace() for ch in key):
+        return False
+    if not key.isascii() or not key.isprintable():
+        return False
+    return True
+
+
 class SnipperAgent:
     def __init__(
         self,
@@ -63,11 +66,18 @@ class SnipperAgent:
         falling back to local Settings if not explicitly provided.
         """
         resolved_key = api_key or getattr(settings, "openrouter_api_key", None)
+        resolved_key = resolved_key.strip() if resolved_key else resolved_key
 
-        if not resolved_key or not resolved_key.strip():
+        if not resolved_key:
             raise MissingApiKeyError(
                 "No OpenRouter API key is configured yet. Add one in "
                 "Settings to start chatting with SnipperAI."
+            )
+
+        if not is_valid_api_key(resolved_key):
+            raise InvalidApiKeyError(
+                "This doesn't look like a valid API key. Double-check what "
+                "you pasted into Settings - it may be the wrong text."
             )
 
         self.llm = ChatOpenRouter(
@@ -106,9 +116,7 @@ class SnipperAgent:
 
     def _classify_error(self, exc: Exception) -> AgentError:
         """Turns an arbitrary exception from the LLM call into a typed,
-        user-safe AgentError. Classification is heuristic (status code if
-        present, otherwise message text) since the exact exception types
-        raised depend on the installed langchain/OpenRouter client version.
+        user-safe AgentError.
         """
         logger.exception("SnipperAgent inference call failed")
 
@@ -116,6 +124,12 @@ class SnipperAgent:
             getattr(exc, "response", None), "status_code", None
         )
         text = str(exc).lower()
+
+        if isinstance(exc, UnicodeEncodeError):
+            return InvalidApiKeyError(
+                "This doesn't look like a valid API key. Please check it "
+                "in Settings."
+            )
 
         if status_code == 401 or any(
             term in text for term in ("authentication", "unauthorized", "api key", "invalid_api_key")

@@ -1,5 +1,4 @@
-﻿# snipperai/ui/agent_chat_window.py
-import importlib
+﻿import importlib
 import os
 import re
 from typing import Optional
@@ -49,9 +48,6 @@ class InferenceWorker(QThread):
                 chat_history=self.chat_history,
             )
         except Exception:
-            # Safety net: AgentAction.execute() shouldn't raise (it returns
-            # a result object either way), but if it somehow does, still
-            # never leak the raw exception into the chat window.
             self.error.emit(
                 AgentError("Something unexpected happened. Please try again.", retryable=True)
             )
@@ -66,10 +62,6 @@ class InferenceWorker(QThread):
 class AgentChatWindow(QWidget):
     """Frameless, glass-panel chat interface for talking to SnipperAI."""
 
-    # Emitted when the user hits an API-key-related error and should be
-    # sent to Settings to fix it. Connect this to your Settings dialog's
-    # open logic from wherever AgentChatWindow is constructed, e.g.:
-    #   window.open_settings_requested.connect(lambda: SettingsDialog(window).exec())
     open_settings_requested = pyqtSignal()
 
     def __init__(self, image_path: str, agent_action: AgentAction):
@@ -82,9 +74,7 @@ class AgentChatWindow(QWidget):
         self._setup_ui()
         self._start_initial_analysis()
 
-    # ------------------------------------------------------------------ #
     # Window setup
-    # ------------------------------------------------------------------ #
 
     def _configure_window(self) -> None:
         self.setObjectName("root")
@@ -166,9 +156,7 @@ class AgentChatWindow(QWidget):
         panel_layout.addLayout(body)
         outer.addWidget(panel)
 
-    # ------------------------------------------------------------------ #
-    # Markdown / LaTeX rendering (unchanged logic, kept as-is)
-    # ------------------------------------------------------------------ #
+    # Markdown / LaTeX rendering 
 
     def _escape_html(self, text: str) -> str:
         return (
@@ -301,9 +289,7 @@ class AgentChatWindow(QWidget):
         except (ImportError, ModuleNotFoundError):
             return self._simple_markdown_to_html(text)
 
-    # ------------------------------------------------------------------ #
     # Chat rendering - monochrome, hierarchy via alignment/weight not color
-    # ------------------------------------------------------------------ #
 
     @staticmethod
     def _truncate(text: str, limit: int = 400) -> str:
@@ -314,17 +300,6 @@ class AgentChatWindow(QWidget):
 
     def append_message(self, role: str, text: str) -> None:
         """Formats and appends a message to the chat display.
-
-        Role is signaled without color (strict monochrome): user messages
-        are right-aligned, SnipperAI's are left-aligned, and System/Error
-        notices render as small centered italic captions - the same trick
-        chat UIs use color for, done here with layout and weight instead.
-
-        System/Error text is truncated defensively: those messages should
-        always be short, curated strings from AgentError.user_message, but
-        capping length here means a future bug upstream can't dump a huge
-        blob (raw exception text, a stray traceback, etc.) into the chat
-        again the way the old `f"AI Inference Error: {exc}"` path did.
         """
         if role in ("System", "Error"):
             html = (
@@ -352,9 +327,7 @@ class AgentChatWindow(QWidget):
         """
         self.chat_display.append(html)
 
-    # ------------------------------------------------------------------ #
-    # Inference plumbing (unchanged)
-    # ------------------------------------------------------------------ #
+    # Inference plumbing
 
     def _start_initial_analysis(self):
         self.append_message("System", "Analyzing snippet...")
@@ -399,10 +372,7 @@ class AgentChatWindow(QWidget):
     def _on_inference_error(self, error: AgentError) -> None:
         """Renders a classified, user-safe error - never raw exception
         text, and never through the markdown/code-block rendering path
-        (that combination is what produced the "ghost code" artifact:
-        an unbounded raw exception string landing in a `<pre><code>`
-        block with no explicit color, inheriting a near-invisible
-        default). Errors always go through the Error role instead.
+        Errors always go through the Error role instead.
         """
         self.append_message("Error", error.user_message)
 

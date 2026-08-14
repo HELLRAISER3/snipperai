@@ -1,13 +1,3 @@
-# snipperai/ui/onboarding.py
-"""Onboarding flow.
-
-Deliberately NOT a QWizard: QWizard draws its watermark, page frame, and
-button box using the native OS style engine, which stylesheets can only
-partially override. To get a real frameless glass panel matching the
-rest of the app, this is a small hand-rolled QStackedWidget flow instead.
-The class is still named `OnboardingWizard` and still used via
-`.exec()` / overridden `accept()` so nothing calling it needs to change.
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
@@ -21,6 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from snipperai.cloud.agent import is_valid_api_key
 from snipperai.config import settings
 from snipperai.ui.controls import (
     DotIndicator,
@@ -71,14 +62,12 @@ class OnboardingWizard(QDialog):
         self._build_ui()
         self._refresh_nav()
 
-    # ------------------------------------------------------------------ #
     # Pages
-    # ------------------------------------------------------------------ #
 
     def _build_pages(self) -> None:
         self.stack = QStackedWidget()
 
-        # --- Page 1: Welcome
+        # Page 1: Welcome
         welcome, welcome_layout = _page(
             "Welcome to SnipperAI",
             "Your AI-powered desktop snippet and OCR assistant.",
@@ -94,7 +83,7 @@ class OnboardingWizard(QDialog):
         welcome_layout.addStretch()
         self.stack.addWidget(welcome)
 
-        # --- Page 2: API key
+        # Page 2: API key
         api_page, api_layout = _page(
             "OpenRouter API Key",
             "Provide your key to enable multi-modal AI reasoning.",
@@ -106,10 +95,17 @@ class OnboardingWizard(QDialog):
         self.api_key_input.textChanged.connect(self._refresh_nav)
         key_field.row.addWidget(self.api_key_input, stretch=1)
         api_layout.addWidget(key_field)
+
+        self.key_warning = QLabel("This doesn't look like a valid API key.")
+        self.key_warning.setObjectName("warning_label")
+        self.key_warning.setWordWrap(True)
+        self.key_warning.hide()
+        api_layout.addWidget(self.key_warning)
+
         api_layout.addStretch()
         self.stack.addWidget(api_page)
 
-        # --- Page 3: Preferences
+        # Page 3: Preferences
         prefs_page, prefs_layout = _page(
             "App Preferences",
             "Configure how you launch SnipperAI.",
@@ -133,9 +129,7 @@ class OnboardingWizard(QDialog):
         prefs_layout.addStretch()
         self.stack.addWidget(prefs_page)
 
-    # ------------------------------------------------------------------ #
     # Chrome
-    # ------------------------------------------------------------------ #
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
@@ -176,9 +170,7 @@ class OnboardingWizard(QDialog):
         panel_layout.addLayout(body)
         outer.addWidget(panel)
 
-    # ------------------------------------------------------------------ #
     # Navigation
-    # ------------------------------------------------------------------ #
 
     def _refresh_nav(self) -> None:
         index = self.stack.currentIndex()
@@ -188,9 +180,11 @@ class OnboardingWizard(QDialog):
         self.next_btn.setText("Finish" if is_last else "Next")
         self.dots.set_active(index)
 
-        # API key page (index 1) is mandatory before continuing.
         if index == 1:
-            self.next_btn.setEnabled(bool(self.api_key_input.text().strip()))
+            key = self.api_key_input.text()
+            valid = is_valid_api_key(key)
+            self.key_warning.setVisible(bool(key) and not valid)
+            self.next_btn.setEnabled(valid)
         else:
             self.next_btn.setEnabled(True)
 
@@ -205,9 +199,7 @@ class OnboardingWizard(QDialog):
         self.stack.setCurrentIndex(self.stack.currentIndex() + 1)
         self._refresh_nav()
 
-    # ------------------------------------------------------------------ #
     # Completion
-    # ------------------------------------------------------------------ #
 
     def accept(self) -> None:
         """Save settings once onboarding completes successfully."""

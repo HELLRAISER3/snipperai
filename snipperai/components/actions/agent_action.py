@@ -1,4 +1,3 @@
-# snipperai/components/actions.py
 import os
 from typing import Optional
 
@@ -20,7 +19,7 @@ class AgentActionResult:
         self.text = text
         self.error = error
 
-    @property
+    @property   
     def ok(self) -> bool:
         return self.error is None
 
