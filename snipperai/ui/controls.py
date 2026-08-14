@@ -19,10 +19,6 @@ from snipperai.ui.theme import CANVAS, TEXT_PRIMARY
 
 class HoverFrame(QFrame):
     """The floating glass panel every window is built on.
-
-    Owns the elevation shadow so it's applied exactly once, consistently,
-    rather than every window re-adding a QGraphicsDropShadowEffect with
-    slightly different numbers.
     """
 
     def __init__(self, parent: QWidget | None = None):
@@ -40,10 +36,6 @@ class HoverFrame(QFrame):
 
 class TrafficDot(QPushButton):
     """A single monochrome window-control dot (close / minimize / zoom).
-
-    Since color can't signal which control does what (strict black/white/
-    grey palette), the glyph stays faintly visible at rest rather than
-    only appearing on hover.
     """
 
     def __init__(self, glyph: str, parent: QWidget | None = None):

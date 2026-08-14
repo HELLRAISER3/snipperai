@@ -1,3 +1,4 @@
+# snipperai/ui/theme.py
 """Dark 'liquid glass' theme tokens and QSS for SnipperAI.
 
 Single source of truth for the app's monochrome design system: off-black
@@ -14,7 +15,10 @@ FONT_STACK = (
 )
 
 # --- Tonal tokens ---------------------------------------------------------
-
+# Off-black/off-white on purpose: pure #000/#FFF reads as harsh/high-vis,
+# not premium. These are also imported directly by controls.py (e.g. for
+# ToggleSwitch's hand-painted knob) and by windows that build inline HTML
+# (agent chat) so there is exactly one place colors are ever defined.
 CANVAS = "#161616"
 SURFACE = "rgba(255, 255, 255, 0.045)"
 SURFACE_BORDER = "rgba(255, 255, 255, 0.08)"
@@ -23,6 +27,9 @@ TEXT_PRIMARY = "#F2F2F2"
 TEXT_SECONDARY = "rgba(255, 255, 255, 0.55)"
 TEXT_TERTIARY = "rgba(255, 255, 255, 0.35)"
 
+# A touch of translucency for glass panels that should let a hint of the
+# desktop show through (used by ocr/settings/agent). Kept as one shared
+# value so all three stay visually consistent instead of drifting.
 PANEL_TRANSLUCENT = "rgba(22, 22, 22, 0.92)"
 
 BASE_QSS = f"""
@@ -266,15 +273,25 @@ QFrame#panel {{
 
 MENU_QSS = f"""
 QFrame {{
-    background-color: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background-color: rgba(22, 22, 22, 0.92);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }}
 
 QPushButton {{
-    background-color: rgba(255, 255, 255, 0.04);
-    border-radius: 10px;
-    color: {TEXT_PRIMARY};
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 0px;
+    min-height: 0px;
+}}
+
+QPushButton:hover {{
+    background-color: rgba(255, 255, 255, 0.12);
+}}
+
+QPushButton:pressed {{
+    background-color: rgba(255, 255, 255, 0.18);
 }}
 """
 
