@@ -1,4 +1,3 @@
-# snipperai/ui/settings_dialog.py
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
@@ -34,11 +33,6 @@ class SettingsDialog(QDialog):
         self.setModal(True)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # Sized to comfortably fit both cards + footer *inside* the 40px
-        # outer margin (see outer.setContentsMargins below) - the margin
-        # was widened to fix a shadow-related Windows crash without the
-        # window growing to match, which squeezed/clipped the bottom of
-        # the Preferences card.
         self.resize(500, 560)
         self.setMinimumSize(460, 520)
 
@@ -58,7 +52,6 @@ class SettingsDialog(QDialog):
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.setSpacing(0)
 
-        # Modal dialog: no minimize/maximize, close only.
         panel_layout.addWidget(
             TitleBar(self, "Settings", show_minimize=False, show_maximize=False)
         )
@@ -67,7 +60,6 @@ class SettingsDialog(QDialog):
         body.setContentsMargins(24, 22, 24, 22)
         body.setSpacing(16)
 
-        # --- API Authentication card
         auth_card = SectionCard("API Authentication (BYOK)")
         key_field = LabeledField("OpenRouter Key")
         self.api_key_input = QLineEdit()
@@ -82,7 +74,6 @@ class SettingsDialog(QDialog):
         auth_card.add_row(key_field)
         body.addWidget(auth_card)
 
-        # --- Preferences card
         prefs_card = SectionCard("Preferences")
 
         hotkey_field = LabeledField("Global Hotkey")
@@ -106,7 +97,6 @@ class SettingsDialog(QDialog):
         body.addWidget(prefs_card)
         body.addStretch()
 
-        # --- Footer actions
         footer = QHBoxLayout()
         footer.addStretch()
         cancel_btn = HoverButton("Cancel")
@@ -147,12 +137,8 @@ class SettingsDialog(QDialog):
         try:
             settings.save_settings(api_key=api_key, hotkey=hotkey, autostart=autostart)
             self.accept()
+
         except Exception as e:
-            # Note: QMessageBox is a native dialog and will not pick up the
-            # glass theme - it's used here only for hard failure states,
-            # which is an acceptable, deliberate exception to the visual
-            # system (an error dialog interrupting the flow doesn't need
-            # to match the calm chrome of the rest of the app).
             QMessageBox.critical(
                 self, "Error Saving Config", f"Could not write configuration to disk: {e}"
             )

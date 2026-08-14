@@ -17,7 +17,7 @@ class SnipperAgent:
         falling back to local Settings if not explicitly provided.
         """
         resolved_key = api_key or getattr(settings, "openrouter_api_key", None)
-        
+        print(f"Initialized SnipperAgent with api_key: {resolved_key[:5]}...")
         if not resolved_key:
             raise ValueError(
                 "OpenRouter API key missing. Please provide a key in settings or pass it directly."

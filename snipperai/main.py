@@ -1,18 +1,19 @@
 import sys
 import keyboard
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt6.QtCore import pyqtSignal, QObject
+from PyQt6.QtCore import QProcess, pyqtSignal, QObject
 from PyQt6.QtGui import QIcon, QPixmap, QColor
 from PyQt6.sip import isdeleted
 
+from snipperai.components.settings.autostart import set_autostart
 from snipperai.config import settings
+from snipperai.cloud.agent import SnipperAgent
 from snipperai.components.actions import OCRAction, CopyAction, CloseAction, AgentAction
 from snipperai.components.actions.settings_action import SettingsAction
 from snipperai.ui.overlay import SnipperOverlay
 from snipperai.ui.ocr_result_window import TextResultWindow
 from snipperai.ui.agent_window import AgentChatWindow
 from snipperai.ui.onboarding import OnboardingWizard
-
 
 class HotkeySignal(QObject):
     triggered = pyqtSignal()
@@ -76,13 +77,25 @@ class SnipperApp:
         self.tray_icon.show()
         return self.tray_icon
 
+    def restart_application():
+        """Restarts the current Python process cleanly."""
+        process = QProcess()
+        process.startDetached(sys.executable, sys.argv)
+        QApplication.quit()
+
     def open_settings(self):
         """Opens settings dialog and updates active hotkeys if changed."""
         action = SettingsAction()
         saved = action.execute()
 
         if saved and settings.hotkey.lower() != self.current_hotkey:
+            print(f"[Settings] Hotkey changed to: {settings.hotkey.lower()}")
             self._bind_hotkey(settings.hotkey.lower())
+        if saved and getattr(settings, "autostart", None) != getattr(settings, "autostart", None):
+            print(f"[Settings] Autostart changed.")
+            set_autostart(getattr(settings, "autostart", None))
+        if saved:
+            self.agent_action = AgentAction(agent=SnipperAgent())
 
     def start_snip(self):
         """Launches the full-screen selection overlay safely."""
@@ -102,6 +115,7 @@ class SnipperApp:
 
     def dispatch_action(self, action_type: str, image_path: str):
         if action_type == "EXPLAIN":
+            
             self.result_window = AgentChatWindow(
                 image_path=image_path,
                 agent_action=self.agent_action

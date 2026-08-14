@@ -37,5 +37,5 @@ def set_autostart(enable: bool) -> bool:
             print(f"[Autostart Error] {exc}", file=sys.stderr)
             return False
 
-    # Standard fallback / placeholder for non-Windows platforms
+    # Fallback for non-Windows platforms
     return True
