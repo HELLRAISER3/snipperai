@@ -1,12 +1,38 @@
-import os
 import json
+import os
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from cryptography.fernet import Fernet
+import keyring
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 APP_NAME = "SnipperAI"
 CONFIG_DIR = Path(os.getenv("APPDATA") or Path.home() / ".config") / APP_NAME
 CONFIG_FILE = CONFIG_DIR / "config.json"
+
+
+def _get_fernet() -> Fernet:
+    """Retrieve or generate the encryption key stored in the system keyring."""
+    key = keyring.get_password(APP_NAME, "config_encryption_key")
+    if not key:
+        key = Fernet.generate_key().decode()
+        keyring.set_password(APP_NAME, "config_encryption_key", key)
+    return Fernet(key.encode())
+
+
+def encrypt_val(value: str | None) -> str | None:
+    if not value:
+        return None
+    return _get_fernet().encrypt(value.encode()).decode()
+
+
+def decrypt_val(token: str | None) -> str | None:
+    if not token:
+        return None
+    try:
+        return _get_fernet().decrypt(token.encode()).decode()
+    except Exception:
+        return None
 
 
 class Settings(BaseSettings):
@@ -30,8 +56,9 @@ class Settings(BaseSettings):
         self.first_launch = first_launch
 
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
         payload = {
-            "OPENROUTER_API_KEY": self.openrouter_api_key,
+            "OPENROUTER_API_KEY": encrypt_val(self.openrouter_api_key),
             "HOTKEY": self.hotkey,
             "AUTOSTART": self.autostart,
             "FIRST_LAUNCH": self.first_launch,
@@ -46,12 +73,16 @@ class Settings(BaseSettings):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return cls(
-                        openrouter_api_key=data.get("OPENROUTER_API_KEY"),
-                        hotkey=data.get("HOTKEY", "ctrl+shift+s"),
-                        autostart=data.get("AUTOSTART", False),
-                        first_launch=data.get("FIRST_LAUNCH", False),  
-                    )
+
+                raw_key = data.get("OPENROUTER_API_KEY")
+                decrypted_key = decrypt_val(raw_key) if raw_key else None
+
+                return cls(
+                    openrouter_api_key=decrypted_key,
+                    hotkey=data.get("HOTKEY", "ctrl+shift+s"),
+                    autostart=data.get("AUTOSTART", False),
+                    first_launch=data.get("FIRST_LAUNCH", False),
+                )
             except Exception:
                 pass
 

@@ -46,9 +46,9 @@ class SnipperApp:
             self.current_hotkey = hotkey
             if self.tray_icon:
                 self.tray_icon.setToolTip(f"SnipperAI (Active: {self.current_hotkey.upper()})")
-            print(f"[SnipperAI] Active hotkey: {self.current_hotkey.upper()}")
+            print(f"[Settings] Active hotkey: {self.current_hotkey.upper()}")
         except Exception as e:
-            print(f"[Hotkey Error] Failed to bind '{hotkey}': {e}", file=sys.stderr)
+            print(f"[Settings error] Failed to bind '{hotkey}': {e}", file=sys.stderr)
 
     def _on_hotkey_pressed(self):
         self.hotkey_signal.triggered.emit()
@@ -91,10 +91,8 @@ class SnipperApp:
         if saved and settings.hotkey.lower() != self.current_hotkey:
             print(f"[Settings] Hotkey changed to: {settings.hotkey.lower()}")
             self._bind_hotkey(settings.hotkey.lower())
-        if saved and getattr(settings, "autostart", None) != getattr(settings, "autostart", None):
-            print(f"[Settings] Autostart changed.")
-            set_autostart(getattr(settings, "autostart", None))
         if saved:
+            set_autostart(getattr(settings, "autostart", None))
             self.agent_action = AgentAction(agent=SnipperAgent())
 
     def start_snip(self):
@@ -137,14 +135,14 @@ class SnipperApp:
 
         elif action_type == "COPY_IMAGE":
             CopyAction.execute(image_path)
-            print("Image copied to clipboard successfully!")
+            print("[SnipperAI] Image copied to clipboard successfully!")
 
         elif action_type == "SETTINGS":
             self.open_settings()
 
         elif action_type == "CLOSE":
             CloseAction.execute()
-            print("Snipping cancelled.")
+            print("[SnipperAI] Snipping cancelled.")
 
 
 if __name__ == "__main__":
@@ -164,5 +162,5 @@ if __name__ == "__main__":
     snipper_app = SnipperApp()
     tray_icon = snipper_app.create_tray_icon(app)
 
-    print(f"SnipperAI background process active ({snipper_app.current_hotkey.upper()}).")
+    print(f"[SnipperAI] Background process active.")
     sys.exit(app.exec())

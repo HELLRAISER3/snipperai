@@ -34,7 +34,7 @@ def set_autostart(enable: bool) -> bool:
             winreg.CloseKey(key)
             return True
         except Exception as exc:
-            print(f"[Autostart Error] {exc}", file=sys.stderr)
+            print(f"[Settings error] {exc}", file=sys.stderr)
             return False
 
     # Fallback for non-Windows platforms
