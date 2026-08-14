@@ -9,5 +9,5 @@ class SettingsAction:
 
     def execute(self, image_path: Optional[str] = None, **kwargs) -> bool:
         dialog = SettingsDialog(parent=self.parent_widget)
-        result = dialog.exec()
+        result = dialog.show() # .exec() for modal window
         return result == SettingsDialog.DialogCode.Accepted

@@ -31,7 +31,7 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("SnipperAI \u2014 Settings")
-        self.setModal(True)
+        self.setModal(False) # True for modal
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
