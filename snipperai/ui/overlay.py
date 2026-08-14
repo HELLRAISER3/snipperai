@@ -3,6 +3,7 @@ import sys
 from PyQt6.QtWidgets import QApplication, QWidget, QFrame, QHBoxLayout, QPushButton
 from PyQt6.QtCore import Qt, QRect, QPoint, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen
+from snipperai.ui.theme import get_theme_qss
 
 
 class SnipperActionMenu(QFrame):
@@ -10,48 +11,8 @@ class SnipperActionMenu(QFrame):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.SubWindow | Qt.WindowType.FramelessWindowHint)
         
-        self.setStyleSheet("""
-            QFrame {
-                background-color: rgba(255, 255, 255, 0.95);
-                border-radius: 10px;
-                border: 1px solid rgba(0, 0, 0, 0.08);
-            }
-            QPushButton {
-                background-color: #FFFFFF;
-                color: #111827;
-                border: 1px solid #D1D5DB;
-                border-radius: 10px;
-                padding: 8px 12px;
-                font-size: 13px;
-                font-weight: 600;
-                font-family: 'Segoe UI', sans-serif;
-            }
-            QPushButton:hover {
-                background-color: #EFF6FF;
-                border-color: #BFDBFE;
-            }
-            QPushButton#agent_btn {
-                background-color: #EFF6FF;
-                border: 1px solid #BFDBFE;
-                color: #1D4ED8;
-            }
-            QPushButton#agent_btn:hover {
-                background-color: #DBEAFE;
-            }
-            QPushButton#close_btn {
-                background-color: #FEE2E2;
-                color: #B91C1C;
-                border: 1px solid #FECACA;
-                padding: 8px 10px;
-            }
-            QPushButton#close_btn:hover {
-                background-color: #FECACA;
-                color: #7F1D1D;
-            }
-            QPushButton#settings_btn {
-                padding: 8px 10px;
-            }
-        """)
+        # Use shared theme for menu controls (greyscale frosted look)
+        self.setStyleSheet(get_theme_qss("menu"))
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -190,5 +151,5 @@ class SnipperOverlay(QWidget):
         if self.is_selecting or self.current_selection_rect:
             rect = QRect(self.begin, self.end).normalized() if self.is_selecting else self.current_selection_rect
             painter.drawPixmap(rect, self.full_screenshot, rect)
-            painter.setPen(QPen(QColor(59, 130, 246), 2))
+            painter.setPen(QPen(QColor(71, 71, 71), 1))
             painter.drawRect(rect)

@@ -1,16 +1,24 @@
-﻿import importlib
+﻿# snipperai/ui/agent_chat_window.py
+import importlib
 import os
 import re
 from typing import Optional
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextEdit,
-    QLineEdit, QPushButton, QLabel
-)
+
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 from langchain_core.messages import HumanMessage, AIMessage
 
 from snipperai.components.actions import AgentAction
+from snipperai.ui.controls import HoverButton, HoverFrame, TitleBar
+from snipperai.ui.theme import TEXT_PRIMARY, TEXT_TERTIARY, get_theme_qss
 
 
 class InferenceWorker(QThread):
@@ -45,7 +53,7 @@ class InferenceWorker(QThread):
 
 
 class AgentChatWindow(QWidget):
-    """A dedicated, polished chat interface for communicating with SnipperAI."""
+    """Frameless, glass-panel chat interface for talking to SnipperAI."""
 
     def __init__(self, image_path: str, agent_action: AgentAction):
         super().__init__()
@@ -53,70 +61,51 @@ class AgentChatWindow(QWidget):
         self.agent_action = agent_action
         self.chat_history = []
 
-        self.setWindowTitle("SnipperAI - Agent Conversation")
-        self.resize(600, 700)
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #F3F4F6;
-                color: #111827;
-                font-family: 'Segoe UI', sans-serif;
-            }
-            QTextEdit {
-                background-color: #FFFFFF;
-                color: #111827;
-                border: 1px solid #E5E7EB;
-                border-radius: 14px;
-                padding: 14px;
-                font-size: 14px;
-            }
-            QTextEdit:focus {
-                border: 1px solid #93C5FD;
-            }
-            QLineEdit {
-                background-color: #FFFFFF;
-                color: #111827;
-                border: 1px solid #E5E7EB;
-                border-radius: 12px;
-                padding: 12px;
-                font-size: 14px;
-                min-height: 38px;
-            }
-            QLineEdit:focus {
-                border: 1px solid #93C5FD;
-            }
-            QPushButton {
-                background-color: #FFFFFF;
-                color: #111827;
-                border: 1px solid #E5E7EB;
-                border-radius: 12px;
-                padding: 10px 16px;
-                font-weight: 700;
-            }
-            QPushButton:hover {
-                background-color: #EFF6FF;
-                border-color: #BFDBFE;
-            }
-            QPushButton:disabled {
-                background-color: #F8FAFC;
-                color: #9CA3AF;
-                border-color: #E5E7EB;
-            }
-        """)
-
+        self._configure_window()
         self._setup_ui()
         self._start_initial_analysis()
 
-    def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+    # ------------------------------------------------------------------ #
+    # Window setup
+    # ------------------------------------------------------------------ #
+
+    def _configure_window(self) -> None:
+        self.setObjectName("root")
+        self.setWindowTitle("SnipperAI \u2014 Agent Conversation")
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.resize(660, 760)
+        self.setMinimumSize(520, 520)
+        self.setStyleSheet(get_theme_qss("agent"))
+
+    def toggle_maximized(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    def _setup_ui(self) -> None:
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(40, 40, 40, 40)
+
+        panel = HoverFrame()
+        panel.setObjectName("panel")
+
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
+        panel_layout.addWidget(TitleBar(self, "Agent Conversation"))
+
+        body = QVBoxLayout()
+        body.setContentsMargins(24, 20, 24, 20)
+        body.setSpacing(14)
 
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
+
         self.image_label = QLabel()
-        self.image_label.setFixedSize(120, 80)
-        self.image_label.setStyleSheet(
-            "border: 1px solid #334155; border-radius: 4px; background-color: #1E293B;"
-        )
+        self.image_label.setObjectName("thumb_frame")
+        self.image_label.setFixedSize(112, 76)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         if os.path.exists(self.image_path):
@@ -132,29 +121,37 @@ class AgentChatWindow(QWidget):
             self.image_label.setText("No Image")
 
         info_label = QLabel("Chatting with SnipperAI about this capture.")
-        info_label.setStyleSheet("color: #94A3B8; font-size: 13px;")
+        info_label.setObjectName("agent_info_label")
+        info_label.setWordWrap(True)
 
         header_layout.addWidget(self.image_label)
-        header_layout.addWidget(info_label)
-        header_layout.addStretch()
-        layout.addLayout(header_layout)
+        header_layout.addWidget(info_label, stretch=1)
+        body.addLayout(header_layout)
 
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
-        layout.addWidget(self.chat_display)
+        body.addWidget(self.chat_display, stretch=1)
 
         input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
         self.input_field = QLineEdit()
         self.input_field.setPlaceholderText("Ask a follow-up question...")
         self.input_field.returnPressed.connect(self.send_message)
 
-        self.send_btn = QPushButton("Send")
-        self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.send_btn = HoverButton("Send")
+        self.send_btn.setObjectName("send_button")
         self.send_btn.clicked.connect(self.send_message)
 
-        input_layout.addWidget(self.input_field)
+        input_layout.addWidget(self.input_field, stretch=1)
         input_layout.addWidget(self.send_btn)
-        layout.addLayout(input_layout)
+        body.addLayout(input_layout)
+
+        panel_layout.addLayout(body)
+        outer.addWidget(panel)
+
+    # ------------------------------------------------------------------ #
+    # Markdown / LaTeX rendering (unchanged logic, kept as-is)
+    # ------------------------------------------------------------------ #
 
     def _escape_html(self, text: str) -> str:
         return (
@@ -170,22 +167,22 @@ class AgentChatWindow(QWidget):
             tex = m.group(1) or m.group(2) or ""
             if not tex:
                 return ""
-            
+
             s = tex.strip()
-            s = s.replace(r"\infty", "∞")
-            s = s.replace(r"\sum", "∑")
-            s = s.replace(r"\int", "∫")
+            s = s.replace(r"\infty", "\u221e")
+            s = s.replace(r"\sum", "\u2211")
+            s = s.replace(r"\int", "\u222b")
             s = s.replace(r"\sin", "sin")
             s = s.replace(r"\cos", "cos")
             s = s.replace(r"\ln", "ln")
-            s = s.replace(r"\in", "∈")
-            s = s.replace(r"\times", "×")
-            s = s.replace(r"\leq", "≤")
-            s = s.replace(r"\geq", "≥")
-            s = s.replace(r"\neq", "≠")
-            
+            s = s.replace(r"\in", "\u2208")
+            s = s.replace(r"\times", "\u00d7")
+            s = s.replace(r"\leq", "\u2264")
+            s = s.replace(r"\geq", "\u2265")
+            s = s.replace(r"\neq", "\u2260")
+
             s = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1)/(\2)", s)
-            
+
             s = s.replace("\\", "")
             return f"<code>{s}</code>"
 
@@ -194,18 +191,32 @@ class AgentChatWindow(QWidget):
 
         return text
 
+    # Placeholder wrappers used to protect code spans while the regexes
+    # below run. These MUST contain no Markdown-significant characters
+    # (_, *, `, #, -) - the previous version used "___CODEBLOCK_N___" /
+    # "___INLINECODE_N___", and the leading/trailing triple underscores
+    # were themselves matched by this method's own emphasis regexes
+    # (`_(.+?)_` / `__(.+?)__`), tearing the placeholder apart into
+    # "<strong><em>INLINECODE_N</em></strong>"-style garbage before the
+    # substitution-back step ever ran. Plain alphanumeric tokens can't
+    # collide with any of the regexes below.
+    _CODEBLOCK_TOKEN = "SNIPPERAICODEBLOCKPLACEHOLDER"
+    _INLINECODE_TOKEN = "SNIPPERAIINLINECODEPLACEHOLDER"
+
     def _simple_markdown_to_html(self, text: str) -> str:
         code_blocks = []
+
         def stash_block(m):
             code_blocks.append(f"<pre><code>{self._escape_html(m.group(1))}</code></pre>")
-            return f"___CODEBLOCK_{len(code_blocks)-1}___"
-        
+            return f"{self._CODEBLOCK_TOKEN}{len(code_blocks)-1}{self._CODEBLOCK_TOKEN}"
+
         text = re.sub(r"```(?:[^\n]*\n)?(.*?)```", stash_block, text, flags=re.S)
 
         inline_codes = []
+
         def stash_inline(m):
             inline_codes.append(f"<code>{self._escape_html(m.group(1))}</code>")
-            return f"___INLINECODE_{len(inline_codes)-1}___"
+            return f"{self._INLINECODE_TOKEN}{len(inline_codes)-1}{self._INLINECODE_TOKEN}"
 
         text = re.sub(r"`([^`]+)`", stash_inline, text)
 
@@ -254,9 +265,9 @@ class AgentChatWindow(QWidget):
         result = "".join(html_lines)
 
         for i, code in enumerate(inline_codes):
-            result = result.replace(f"___INLINECODE_{i}___", code)
+            result = result.replace(f"{self._INLINECODE_TOKEN}{i}{self._INLINECODE_TOKEN}", code)
         for i, code in enumerate(code_blocks):
-            result = result.replace(f"___CODEBLOCK_{i}___", code)
+            result = result.replace(f"{self._CODEBLOCK_TOKEN}{i}{self._CODEBLOCK_TOKEN}", code)
 
         return result
 
@@ -264,10 +275,7 @@ class AgentChatWindow(QWidget):
         text = self._latex_to_unicode(text)
         try:
             markdown = importlib.import_module("markdown")
-            html = markdown.markdown(
-                text,
-                extensions=["fenced_code", "codehilite"],
-            )
+            html = markdown.markdown(text, extensions=["fenced_code", "codehilite"])
             html = re.sub(r"<h([1-6])>", r'<h\1 style="margin-top:6px; margin-bottom:2px; padding:0; line-height:1.2;">', html)
             html = re.sub(r"<p>", r'<p style="margin-top:2px; margin-bottom:4px; line-height:1.35;">', html)
             html = re.sub(r"<ul>", r'<ul style="margin-top:2px; margin-bottom:4px; padding-left:20px;">', html)
@@ -276,28 +284,49 @@ class AgentChatWindow(QWidget):
         except (ImportError, ModuleNotFoundError):
             return self._simple_markdown_to_html(text)
 
-    def append_message(self, role: str, text: str):
-        """Formats and appends a message to the chat display."""
-        color = "#2563EB" if role == "User" else "#059669"
-        if role == "Error":
-            color = "#DC2626"
+    # ------------------------------------------------------------------ #
+    # Chat rendering - monochrome, hierarchy via alignment/weight not color
+    # ------------------------------------------------------------------ #
 
+    def append_message(self, role: str, text: str) -> None:
+        """Formats and appends a message to the chat display.
+
+        Role is signaled without color (strict monochrome): user messages
+        are right-aligned, SnipperAI's are left-aligned, and System/Error
+        notices render as small centered italic captions - the same trick
+        chat UIs use color for, done here with layout and weight instead.
+        """
+        if role in ("System", "Error"):
+            html = (
+                f'<p style="text-align:center; color:{TEXT_TERTIARY}; '
+                f'font-size:11px; font-style:italic; margin:10px 0;">'
+                f"{self._escape_html(text)}</p>"
+            )
+            self.chat_display.append(html)
+            return
+
+        align = "right" if role == "User" else "left"
         body = (
             self._render_markdown(text)
             if role == "SnipperAI"
-            else f'<p style="margin-top:2px; margin-bottom:4px; line-height:1.35;">{self._escape_html(text)}</p>'
+            else f'<p style="margin:2px 0;">{self._escape_html(text)}</p>'
         )
 
         html = f"""
-        <div style="margin-bottom:8px;">
-            <b style="color:{color}; font-size:14px;">{role}:</b>
-            <div style="margin-top:2px;">{body}</div>
+        <div style="text-align:{align}; margin-bottom:16px;">
+            <span style="color:{TEXT_TERTIARY}; font-size:10.5px; font-weight:700;
+                         letter-spacing:0.5px;">{role.upper()}</span>
+            <div style="margin-top:4px; color:{TEXT_PRIMARY}; text-align:left;
+                        display:inline-block;">{body}</div>
         </div>
         """
         self.chat_display.append(html)
 
+    # ------------------------------------------------------------------ #
+    # Inference plumbing (unchanged)
+    # ------------------------------------------------------------------ #
+
     def _start_initial_analysis(self):
-        """Triggers the first inference automatically."""
         self.append_message("System", "Analyzing snippet...")
         self._run_inference(
             "Explain what is shown in this snippet concisely. Provide clear and actionable insights.",
@@ -305,7 +334,6 @@ class AgentChatWindow(QWidget):
         )
 
     def send_message(self):
-        """Handles user input and triggers subsequent inferences."""
         user_text = self.input_field.text().strip()
         if not user_text:
             return
@@ -315,36 +343,21 @@ class AgentChatWindow(QWidget):
         self._run_inference(user_text, include_image=False)
 
     def _run_inference(self, prompt: str, include_image: bool = False):
-        """Disables UI, sets up the worker thread, and starts inference."""
         self.send_btn.setEnabled(False)
         self.input_field.setEnabled(False)
 
         image_to_send = self.image_path if include_image else None
 
-        self.worker = InferenceWorker(
-            self.agent_action,
-            prompt,
-            image_to_send,
-            self.chat_history,
-        )
+        self.worker = InferenceWorker(self.agent_action, prompt, image_to_send, self.chat_history)
         self.worker.finished.connect(
             lambda res: self._on_inference_success(res, prompt, include_image)
         )
         self.worker.error.connect(self._on_inference_error)
         self.worker.start()
 
-    def _on_inference_success(
-        self,
-        response_text: str,
-        original_prompt: str,
-        included_image: bool,
-    ):
-        """Handles successful AI response and updates LangChain history."""
+    def _on_inference_success(self, response_text: str, original_prompt: str, included_image: bool):
         if included_image and self.agent_action._agent is not None:
-            msg = self.agent_action._agent.build_multimodal_message(
-                original_prompt,
-                self.image_path,
-            )
+            msg = self.agent_action._agent.build_multimodal_message(original_prompt, self.image_path)
             self.chat_history.append(msg)
         else:
             self.chat_history.append(HumanMessage(content=original_prompt))
@@ -354,12 +367,16 @@ class AgentChatWindow(QWidget):
         self._cleanup_worker()
 
     def _on_inference_error(self, error_msg: str):
-        """Displays errors gracefully in the chat."""
         self.append_message("Error", error_msg)
         self._cleanup_worker()
 
     def _cleanup_worker(self):
-        """Re-enables the UI after the thread finishes."""
         self.send_btn.setEnabled(True)
         self.input_field.setEnabled(True)
         self.input_field.setFocus()
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+            return
+        super().keyPressEvent(event)
