@@ -299,8 +299,11 @@ class AgentChatWindow(QWidget):
         return text[: limit - 1].rstrip() + "\u2026"
 
     def append_message(self, role: str, text: str) -> None:
-        """Formats and appends a message to the chat display.
-        """
+        """Formats and appends a message to the chat display."""
+        cursor = self.chat_display.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        self.chat_display.setTextCursor(cursor)
+
         if role in ("System", "Error"):
             html = (
                 f'<p style="text-align:center; color:{TEXT_TERTIARY}; '
@@ -318,13 +321,13 @@ class AgentChatWindow(QWidget):
         )
 
         html = f"""
-        <div style="text-align:{align}; margin-bottom:16px;">
-            <span style="color:{TEXT_TERTIARY}; font-size:10.5px; font-weight:700;
-                         letter-spacing:0.5px;">{role.upper()}</span>
-            <div style="margin-top:4px; color:{TEXT_PRIMARY}; text-align:left;
-                        display:inline-block;">{body}</div>
+        <div style="margin-top: 14px; margin-bottom: 12px; text-align: {align}; clear: both;">
+            <div style="color: {TEXT_TERTIARY}; font-size: 10.5px; font-weight: 700;
+                        letter-spacing: 0.5px; margin-bottom: 4px;">{role.upper()}</div>
+            <div style="color: {TEXT_PRIMARY}; text-align: left;">{body}</div>
         </div>
         """
+        
         self.chat_display.append(html)
 
     # Inference plumbing
