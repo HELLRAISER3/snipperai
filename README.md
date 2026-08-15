@@ -24,7 +24,7 @@ Grab the latest build from [Releases](../../releases), unzip it, run `SnipperAI.
 git clone https://github.com/<you>/snipperai.git
 cd snipperai
 uv sync
-uv run python -m snipperai.main
+uv run python -m main
 ```
 
 ## Using it
