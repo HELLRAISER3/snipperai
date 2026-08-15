@@ -1,3 +1,27 @@
+# snipperai/ui/controls.py
+"""Shared, custom-painted widgets for SnipperAI's glass UI.
+
+Every top-level window should be built from these primitives instead of
+raw Qt widgets + inline stylesheets:
+
+- `HoverFrame`   the floating glass panel every window sits in (bakes in
+                  the elevation shadow, so no window has to remember one)
+- `TitleBar`     frameless, draggable, macOS-style traffic-light chrome
+- `HoverButton`  base QPushButton with the right cursor; styling comes
+                  from theme.py by object name (#primary_button /
+                  #ghost_button / default)
+- `ToggleSwitch` hand-painted boolean switch - never use QCheckBox,
+                  its native indicator can't be reskinned to match
+- `SectionCard`  replaces QGroupBox, which also can't be fully reskinned
+                  (its title notch is native chrome)
+- `LabeledField` a small label-over-row layout helper for form rows
+- `DotIndicator` page-progress dots, for onboarding-style flows
+
+Native controls (QCheckBox, QGroupBox, QWizard's button box, the OS
+titlebar) only take partial styling from Qt stylesheets - real visual
+consistency requires custom-painted or custom-composed replacements,
+which is what this module provides.
+"""
 from __future__ import annotations
 
 from PyQt6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, Qt, pyqtProperty
@@ -15,27 +39,50 @@ from PyQt6.QtWidgets import (
 from snipperai.ui.theme import CANVAS, TEXT_PRIMARY
 
 
+# --------------------------------------------------------------------------- #
 # Panel
+# --------------------------------------------------------------------------- #
+
 
 class HoverFrame(QFrame):
     """The floating glass panel every window is built on.
+
+    Owns the elevation shadow so it's applied exactly once, consistently,
+    rather than every window re-adding a QGraphicsDropShadowEffect with
+    slightly different numbers.
     """
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
 
+        # blurRadius + y-offset must stay comfortably inside whatever
+        # margin the window reserves around the panel (see each window's
+        # outer_layout margins). If the shadow's effective reach exceeds
+        # that margin, its bounding rect can extend past the top-level
+        # window's own buffer - on Windows this produces malformed dirty
+        # rects and crashes with "UpdateLayeredWindowIndirect failed:
+        # The parameter is incorrect" the next time anything in the
+        # window triggers a style repolish. Keep reach (blur + offset)
+        # a few px under the smallest margin any window uses (40px).
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(60)
-        shadow.setOffset(0, 18)
+        shadow.setBlurRadius(28)
+        shadow.setOffset(0, 10)
         shadow.setColor(QColor(0, 0, 0, 160))
         self.setGraphicsEffect(shadow)
 
 
+# --------------------------------------------------------------------------- #
 # Title bar / window chrome
+# --------------------------------------------------------------------------- #
+
 
 class TrafficDot(QPushButton):
     """A single monochrome window-control dot (close / minimize / zoom).
+
+    Since color can't signal which control does what (strict black/white/
+    grey palette), the glyph stays faintly visible at rest rather than
+    only appearing on hover.
     """
 
     def __init__(self, glyph: str, parent: QWidget | None = None):
@@ -100,10 +147,6 @@ class TitleBar(QFrame):
         controls = QHBoxLayout()
         controls.setSpacing(8)
 
-        self.close_btn = TrafficDot("\u00d7")
-        self.close_btn.clicked.connect(window.close)
-        controls.addWidget(self.close_btn)
-
         self.min_btn = TrafficDot("\u2212")
         if show_minimize and hasattr(window, "showMinimized"):
             self.min_btn.clicked.connect(window.showMinimized)
@@ -118,6 +161,12 @@ class TitleBar(QFrame):
             self.zoom_btn.setEnabled(False)
         controls.addWidget(self.zoom_btn)
 
+        self.close_btn = TrafficDot("\u00d7")
+        self.close_btn.clicked.connect(window.close)
+        controls.addWidget(self.close_btn)
+
+        # Mirrors the control cluster's width so the title lands
+        # dead-center, matching Windows titlebar layout (controls right).
         spacer = QWidget()
         spacer.setFixedWidth(61)
 
@@ -125,9 +174,9 @@ class TitleBar(QFrame):
         self.title_label.setObjectName("window_title")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addLayout(controls)
-        layout.addWidget(self.title_label, stretch=1)
         layout.addWidget(spacer)
+        layout.addWidget(self.title_label, stretch=1)
+        layout.addLayout(controls)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -147,7 +196,10 @@ class TitleBar(QFrame):
             self._window.toggle_maximized()
 
 
+# --------------------------------------------------------------------------- #
 # Buttons
+# --------------------------------------------------------------------------- #
+
 
 class HoverButton(QPushButton):
     """QPushButton with the right cursor. Visuals come entirely from
@@ -160,7 +212,10 @@ class HoverButton(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
+# --------------------------------------------------------------------------- #
 # Toggle switch (replaces QCheckBox everywhere)
+# --------------------------------------------------------------------------- #
+
 
 class ToggleSwitch(QWidget):
     """A hand-painted, monochrome toggle switch.
@@ -220,7 +275,10 @@ class ToggleSwitch(QWidget):
         painter.drawEllipse(int(self._knob_x), 3, 18, 18)
 
 
+# --------------------------------------------------------------------------- #
 # Section card (replaces QGroupBox everywhere)
+# --------------------------------------------------------------------------- #
+
 
 class SectionCard(QFrame):
     """A single elevation step above the panel background.
@@ -268,7 +326,10 @@ class LabeledField(QWidget):
         layout.addLayout(self.row)
 
 
+# --------------------------------------------------------------------------- #
 # Page-progress dots (onboarding-style flows)
+# --------------------------------------------------------------------------- #
+
 
 class DotIndicator(QWidget):
     """Small centered row of progress dots, e.g. for a multi-step wizard."""

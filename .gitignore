@@ -12,3 +12,6 @@ wheels/
 *.png
 *.jpeg
 *.jpg
+
+/build/
+/dist/
