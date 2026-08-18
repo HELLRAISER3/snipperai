@@ -21,7 +21,7 @@ Grab the latest build from [Releases](../../releases), unzip it, run `SnipperAI.
 ### Running from source
 
 ```bash
-git clone https://github.com/<you>/snipperai.git
+git clone https://github.com/HELLRAISER3/snipperai.git
 cd snipperai
 uv sync
 uv run python -m main
